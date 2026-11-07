@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### 2026-11-07
+- **docs:** refreshed README and docs/hardware.md from the code since 2026-10-07: the 800-series IDs (550c/550d, `Pch` kind) are named in both; no promise in the docs lacks code behind it, so no issue filed.
 - **feat:** the e1000e SNP driver (#1): driver binding for 65 Intel
   82574L/82579/I217/I218/I219 device IDs (pci.ids 2026.11.06), MAC reset
   without a PHY reset, station address from RAL0 or the 82574 EEPROM, PHY

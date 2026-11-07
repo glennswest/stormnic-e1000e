@@ -2,7 +2,7 @@
 
 A Rust `no_std` UEFI Simple Network Protocol (SNP) driver for the **Intel
 e1000e** gigabit family — the discrete **82574L** (8086:10d3, 10f6) and the
-chipset-integrated **82579, I217, I218 and I219** (67 device IDs in
+chipset-integrated **82579, I217, I218 and I219** (and the 800-series chipset GbE 550c/550d; 67 device IDs in
 `src/ids.rs`, checked against pci.ids 2026.11.06) — loaded by
 [stormbootx](https://github.com/glennswest/stormbootx) so it can claim and
 boot images over these NICs without iPXE. A sibling of stormnic-ixgbe,
