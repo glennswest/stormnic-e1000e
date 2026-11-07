@@ -1,0 +1,77 @@
+# CLAUDE.md — stormnic-e1000e
+
+A `no_std` UEFI driver giving firmware an `EFI_SIMPLE_NETWORK_PROTOCOL` for
+the **Intel e1000e** gigabit family: the 82574L and the PCH-integrated
+82579, I217, I218 and I219 (`src/ids.rs`, checked against pci.ids).
+Loaded by stormbootx from `\stormboot\drivers` like its siblings
+stormnic-ixgbe, stormnic-mlx4, stormnic-virtio and stormnic-realtek.
+Read README.md first.
+
+Read the cross-project rules in `../CLAUDE.md` first. In particular, **build
+with `sc-build` after pushing, never on this VM and never as root**, and
+scratch files go in `tmp/`.
+
+## Rules for this crate
+
+- **Sources:** register offsets, bit fields and descriptor formats from
+  Intel's public datasheets (82574 Family GbE Controller Datasheet; the
+  register set is shared by the PCH parts), and the UEFI specification for
+  the binding and SNP. iPXE's `intel.c` and Linux's e1000e (both GPL) are
+  read for behaviour only, **never translated**: the crate is MIT.
+  docs/hardware.md describes the hardware in its own words.
+- It is a *driver*: the binary is an EFI boot-service driver (subsystem 11)
+  installing `EFI_DRIVER_BINDING_PROTOCOL`. Supported declines a function
+  another driver already holds BY_DRIVER: the platform's own driver (Intel's
+  UNDI, or QEMU's iPXE option ROM) wins unless a loader disconnects it first
+  (stormbootx `prefer_media_drivers = e1000e`, the check app).
+- **Flow control is off** (as stormnic-realtek#2): CTRL.TFCE/RFCE clear and
+  the XON/XOFF thresholds zero, so a receive ring nobody drains drops frames
+  instead of sending pause frames to the switch.
+- **The NIC is quiet whenever nobody drives it**: RX/TX disabled, interrupts
+  masked, MAC reset at every Start failure, SNP Shutdown/Stop, binding Stop
+  and ExitBootServices. Only SNP Initialize enables RX and TX.
+- The PHY is never reset (the link the firmware or power-on brought up
+  stays); Start only makes sure autonegotiation is on and the PHY powered.
+- Same layout as stormnic-realtek: the hardware core (`src/e1000e.rs`,
+  `src/ring.rs`, `src/snp_core.rs`) is UEFI-independent and tested on the
+  host against a simulated controller (`test/`); `src/binding.rs`,
+  `src/snp.rs`, `src/pci_io.rs` are the UEFI glue.
+- One line per NIC on the console by default, the trace behind
+  `StormnicVerbose` / `--features verbose` (stormnic-ixgbe#22).
+
+## Build
+
+```bash
+sc-build scripts/check-driver.sh     # build + clippy -D warnings + PE32+ subsystem 11
+sc-build scripts/test-host.sh        # simulated-controller tests
+sc-build scripts/test-ovmf.sh        # QEMU e1000e (82574L) + OVMF: the check app leases, pings, echoes
+```
+
+## Test
+
+- Host: `test/*.rs`, compiled with plain `rustc --test` (scripts/test-host.sh).
+- QEMU/OVMF (`scripts/test-ovmf.sh`): QEMU's `e1000e` device is an 82574L
+  (8086:10d3). The check app (`check/`) disconnects whatever firmware driver
+  holds it (QEMU's iPXE option ROM in the `ipxe` boot), loads
+  `\stormboot\drivers\stormnic-e1000e.efi`, connects it and runs smoltcp over
+  its SNP: DHCP, ping the gateway, UDP echo, then prints
+  `STORMNIC-E1000E CHECK PASS`.
+- The PCH parts (82579, I217–I219) have no emulator; they are verified in
+  simulation only until a machine with one boots it.
+
+## Version
+
+`Cargo.toml` → `package.version` (and `check/Cargo.toml`). Current: `v0.1.0`.
+
+## Work plan
+
+- [ ] #1 UEFI SNP driver: bind, link, transmit/receive; pinned in stormbootx
+  - [ ] Scaffold: workspace (driver + `check/`), build.rs subsystem 11,
+        glue from stormnic-realtek, PCI IDs from pci.ids (2026-11-06)
+  - [ ] Hardware core (reset, MAC address, PHY check, rings), SNP core
+  - [ ] Host tests (`sc-build scripts/test-host.sh`)
+  - [ ] `sc-build scripts/check-driver.sh`: subsystem 11, no warnings
+  - [ ] QEMU/OVMF e1000e (`sc-build scripts/test-ovmf.sh`): no option ROM
+        and with QEMU's efi-e1000e.rom (iPXE takeover)
+  - [ ] stormbootx: issue to pin it in build-nic-drivers.sh
+        (`prefer_media_drivers = e1000e`); #1 proposed `--after` it

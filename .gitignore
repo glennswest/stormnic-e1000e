@@ -1,3 +1,15 @@
 target/
 tmp/
 *.efi
+*.img
+dist/
+.DS_Store
+
+# Scratch and logs
+*.log
+
+# Secrets
+.env
+.env.*
+*.pem
+*.key
