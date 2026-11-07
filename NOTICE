@@ -3,4 +3,10 @@ stormnic-e1000e
 
 An original Rust implementation, licensed MIT (see LICENSE).
 
-Acknowledgement: hardware facts are learned from Intel's public datasheets and iPXE's intel.c (behaviour only). No source code is copied.
+Acknowledgement: hardware facts are learned from Intel's public datasheets
+(82574 Family Gigabit Ethernet Controller Datasheet) and, for behaviour only,
+iPXE's intel.c and Linux's e1000e driver. No source code is copied from them.
+
+The UEFI glue (driver binding, PCI I/O, SNP), the console/trace and the
+check app are taken from the sibling stormnic drivers (stormnic-realtek,
+stormnic-virtio, stormnic-ixgbe), the same owner's MIT code.
