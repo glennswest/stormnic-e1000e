@@ -267,7 +267,7 @@ fn phy_check_powers_up_and_restarts_autonegotiation() {
 fn phy_failures_are_reported_and_the_semaphore_released() {
     let mut d = Dev::new(Kind::M82574);
     d.phy_absent = true;
-    assert_eq!(nic::phy_check(&mut d), Err(Error::MdicError { reg: nic::MII_PHYID1 }));
+    assert_eq!(nic::phy_check(&mut d), Err(Error::MdicFailed { reg: nic::MII_PHYID1 }));
     assert_eq!(d.get(nic::EXTCNF_CTRL) & nic::EXTCNF_SWFLAG, 0);
     let mut d = Dev::new(Kind::M82574);
     d.mdic_stuck = true;

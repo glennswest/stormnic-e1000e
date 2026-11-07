@@ -178,7 +178,7 @@ pub enum Error<E> {
     /// An MDIC access did not complete within 10 ms.
     MdicTimeout { reg: u32 },
     /// The MAC flagged an MDIC access as failed (no PHY at the address).
-    MdicError { reg: u32 },
+    MdicFailed { reg: u32 },
     /// A frame outside 14..=1518 bytes to send.
     Frame { len: usize },
 }
@@ -325,7 +325,7 @@ fn mdic<B: Bus>(b: &mut B, reg: u32, cmd: u32) -> R<u16, B::Error> {
     for _ in 0..1000 {
         b.delay_us(10);
         let v = b.r32(MDIC)?;
-        if v & MDIC_ERROR != 0 { return Err(Error::MdicError { reg }); }
+        if v & MDIC_ERROR != 0 { return Err(Error::MdicFailed { reg }); }
         if v & MDIC_READY != 0 { return Ok(v as u16); }
     }
     Err(Error::MdicTimeout { reg })

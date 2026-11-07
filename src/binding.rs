@@ -229,7 +229,7 @@ fn nic_error(e: &e1000e::Error<Status>) -> impl core::fmt::Display + '_ {
                 e1000e::Error::NoMac => f.write_str("no unicast station address in RAL0/RAH0 or the EEPROM"),
                 e1000e::Error::ResetTimeout { ctrl } => write!(f, "MAC reset did not complete (CTRL {ctrl:#010x})"),
                 e1000e::Error::MdicTimeout { reg } => write!(f, "PHY register {reg} access (MDIC) timed out"),
-                e1000e::Error::MdicError { reg } => write!(f, "PHY register {reg} access (MDIC) failed: no PHY at address 1"),
+                e1000e::Error::MdicFailed { reg } => write!(f, "PHY register {reg} access (MDIC) failed: no PHY at address 1"),
                 e1000e::Error::Frame { len } => write!(f, "bad frame length {len}"),
             }
         }
