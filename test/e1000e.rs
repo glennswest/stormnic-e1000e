@@ -222,7 +222,7 @@ fn a_reset_that_never_completes_fails_start() {
 
 #[test]
 fn the_pch_reset_waits_for_the_nvm_reload_and_acknowledges_it() {
-    let (mut d, _net) = started(Kind::Pch);
+    let (d, _net) = started(Kind::Pch);
     assert_eq!(d.get(nic::STATUS) & nic::STATUS_LAN_INIT_DONE, 0);
     assert!(d.writes(nic::STATUS).iter().all(|v| v & nic::STATUS_LAN_INIT_DONE == 0));
     let mut d = Dev::new(Kind::M82574);
