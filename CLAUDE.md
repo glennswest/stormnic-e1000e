@@ -66,12 +66,17 @@ sc-build scripts/test-ovmf.sh        # QEMU e1000e (82574L) + OVMF: the check ap
 ## Work plan
 
 - [ ] #1 UEFI SNP driver: bind, link, transmit/receive; pinned in stormbootx
-  - [ ] Scaffold: workspace (driver + `check/`), build.rs subsystem 11,
-        glue from stormnic-realtek, PCI IDs from pci.ids (2026-11-06)
-  - [ ] Hardware core (reset, MAC address, PHY check, rings), SNP core
-  - [ ] Host tests (`sc-build scripts/test-host.sh`)
-  - [ ] `sc-build scripts/check-driver.sh`: subsystem 11, no warnings
-  - [ ] QEMU/OVMF e1000e (`sc-build scripts/test-ovmf.sh`): no option ROM
-        and with QEMU's efi-e1000e.rom (iPXE takeover)
-  - [ ] stormbootx: issue to pin it in build-nic-drivers.sh
-        (`prefer_media_drivers = e1000e`); #1 proposed `--after` it
+  - [x] Scaffold: workspace (driver + `check/`), build.rs subsystem 11,
+        glue from stormnic-realtek, PCI IDs from pci.ids (2026.11.06; 67 IDs)
+  - [x] Hardware core (reset, MAC address, PHY check, rings), SNP core (5e6965c)
+  - [x] Host tests: 38 pass (`sc-build scripts/test-host.sh` at 321c2a6)
+  - [x] `sc-build scripts/check-driver.sh` at e5384c7: 57,856 B, PE32+
+        subsystem 11, clippy -D warnings clean on driver and check app, no
+        warnings (#2, #3, #4 were the first builds' findings, closed)
+  - [x] QEMU/OVMF e1000e (`sc-build scripts/test-ovmf.sh` at e5384c7):
+        `plain` (no option ROM) and `ipxe` (efi-e1000e.rom held the NIC,
+        disconnected) both PASS: lease 10.0.2.15, ping 5/5, UDP echo 1200 B,
+        `link up 1000 Mb/s full duplex, flow control off, SNP installed`
+  - [ ] stormbootx#70: pin it in build-nic-drivers.sh and add an `e1000e`
+        family for `prefer_media_drivers` (asked there); #1 proposed
+        `--after` it. #1 closes when stormbootx pins it.

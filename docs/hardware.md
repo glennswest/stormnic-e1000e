@@ -9,7 +9,7 @@ In this project's own words; the facts are from Intel's public datasheets
 | Kind | Parts | NVM | MAC address |
 |------|-------|-----|-------------|
 | `M82574` | 82574L (8086:10d3, 10f6) | own EEPROM, EERD | RAL0/RAH0 (loaded at reset), else EEPROM words 0–2 |
-| `Pch` | 82579, I217, I218, I219 (63 IDs) | a region of the platform SPI flash | RAL0/RAH0 (loaded at reset) |
+| `Pch` | 82579, I217, I218, I219 (65 IDs) | a region of the platform SPI flash | RAL0/RAH0 (loaded at reset) |
 
 All registers are 32-bit, in memory BAR 0.
 

@@ -16,6 +16,12 @@
   (QEMU e1000e under OVMF: DHCP, ping, UDP echo, with and without QEMU's iPXE
   option ROM holding the NIC).
 - **docs:** README, docs/hardware.md, NOTICE, CLAUDE.md work plan.
+- **fix:** clippy and rustc findings from the first builds (#2, #3, #4): an
+  enum variant renamed, a needless `mut`, a no-op transmute in the check app,
+  an unused PciIo config write removed.
+- **feat:** the 800-series chipset GbE IDs 8086:550c/550d (pci.ids), 67 IDs.
+- **test:** verified: 38 host tests pass; check-driver 57,856 B, subsystem 11,
+  clippy clean; QEMU e1000e under OVMF passes plain and iPXE-takeover boots.
 
 ### 2026-10-07
 - **chore:** repository created (owner: low priority, paused)

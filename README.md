@@ -2,16 +2,18 @@
 
 A Rust `no_std` UEFI Simple Network Protocol (SNP) driver for the **Intel
 e1000e** gigabit family — the discrete **82574L** (8086:10d3, 10f6) and the
-chipset-integrated **82579, I217, I218 and I219** (65 device IDs in
+chipset-integrated **82579, I217, I218 and I219** (67 device IDs in
 `src/ids.rs`, checked against pci.ids 2026.11.06) — loaded by
 [stormbootx](https://github.com/glennswest/stormbootx) so it can claim and
 boot images over these NICs without iPXE. A sibling of stormnic-ixgbe,
 stormnic-mlx4, stormnic-virtio and stormnic-realtek, built and pinned the
 same way (stormbootx `build-nic-drivers.sh`).
 
-Status: v0.1.0, #1. The 82574L is checked under QEMU/OVMF (QEMU's `e1000e`
-device); the PCH parts (82579, I217–I219) are verified in simulation only,
-and their console line says so. Not yet pinned in stormbootx.
+Status: v0.1.0, #1. The 82574L passes under QEMU/OVMF (QEMU's `e1000e`
+device, `scripts/test-ovmf.sh`, 2026-11-07 at e5384c7: DHCP, ping 5/5, UDP
+echo, with and without QEMU's iPXE option ROM holding the NIC first). The
+PCH parts (82579, I217–I219) are verified in simulation only, and their
+console line says so. Not yet pinned in stormbootx (stormbootx#70).
 
 ## What it does
 

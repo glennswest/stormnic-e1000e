@@ -8,7 +8,7 @@
 //!   own EEPROM behind EERD. QEMU's `e1000e` device is one (8086:10d3).
 //! - `Pch`: the LAN controller inside an Intel chipset (82579 with its PHY on
 //!   6/7-series, I217/I218/I219 on 8-series and later, including the
-//!   400/500-series IDs pci.ids names by chipset). Its NVM is a region of the
+//!   400/500/800-series IDs pci.ids names by chipset). Its NVM is a region of the
 //!   platform's SPI flash and the PHY is shared with the management engine.
 //!
 //! Not here: the 82571/82572/82573/82583 and the ICH8–ICH10 82566/82567/
@@ -78,6 +78,8 @@ pub const SUPPORTED: &[Nic] = &[
     Nic { device: 0x1a1f, kind: Kind::Pch, name: "Ethernet Connection (16) I219-V" },
     Nic { device: 0x550a, kind: Kind::Pch, name: "Ethernet Connection (18) I219-LM" },
     Nic { device: 0x550b, kind: Kind::Pch, name: "Ethernet Connection (18) I219-LM" },
+    Nic { device: 0x550c, kind: Kind::Pch, name: "800 Series Chipset Family GbE Controller (Corporate/vPro)" },
+    Nic { device: 0x550d, kind: Kind::Pch, name: "800 Series Chipset Family GbE Controller (Consumer)" },
     Nic { device: 0x550e, kind: Kind::Pch, name: "Ethernet Connection (20) I219-LM" },
     Nic { device: 0x550f, kind: Kind::Pch, name: "Ethernet Connection (20) I219-V" },
     Nic { device: 0x5510, kind: Kind::Pch, name: "Ethernet Connection (21) I219-LM" },
