@@ -41,6 +41,8 @@ pub const FCAL: u32 = 0x0028;
 pub const FCAH: u32 = 0x002c;
 pub const FCT: u32 = 0x0030;
 pub const ICR: u32 = 0x00c0;
+/// Interrupt mask set: never written (no interrupts); the tests read it.
+#[allow(dead_code)]
 pub const IMS: u32 = 0x00d0;
 pub const IMC: u32 = 0x00d8;
 pub const RCTL: u32 = 0x0100;
@@ -68,6 +70,8 @@ pub const RAL0: u32 = 0x5400;
 pub const RAH0: u32 = 0x5404;
 
 // CTRL.
+/// Full duplex when forced; the PHY decides here. The tests' simulator sets it.
+#[allow(dead_code)]
 pub const CTRL_FD: u32 = 1 << 0;
 pub const CTRL_GIO_MASTER_DISABLE: u32 = 1 << 2;
 pub const CTRL_LRST: u32 = 1 << 3;

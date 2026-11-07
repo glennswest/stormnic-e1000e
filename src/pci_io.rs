@@ -202,18 +202,6 @@ impl PciIo {
         .to_result_with_val(|| v)
     }
 
-    /// One dword of configuration space, written (the extended registers
-    /// at 0x70c and 0x890 that the MAC init sets, docs/hardware.md).
-    pub fn config_write_u32(&self, offset: u32, value: u32) -> Result {
-        let mut v = value;
-        // SAFETY: live PciIo interface; the buffer holds exactly one U32,
-        // which the firmware only reads.
-        unsafe {
-            (self.pci.write)(self.this(), Width::U32, offset, 1, (&raw mut v).cast())
-        }
-        .to_result()
-    }
-
     pub fn config_write_u16(&self, offset: u32, value: u16) -> Result {
         let mut v = value;
         // SAFETY: live PciIo interface; the buffer holds exactly one U16,
