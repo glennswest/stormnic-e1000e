@@ -97,9 +97,7 @@ fn protocols(handle: uefi_raw::Handle) -> Vec<uefi::Guid> {
     let mut n = 0usize;
     // SAFETY: the firmware fills a pool array of `n` GUID pointers, freed below.
     unsafe {
-        let f: unsafe extern "efiapi" fn(uefi_raw::Handle, *mut *mut *const uefi::Guid, *mut usize) -> Status =
-            core::mem::transmute(bs().protocols_per_handle);
-        if f(handle, &mut buf, &mut n).is_error() || buf.is_null() {
+        if (bs().protocols_per_handle)(handle, &mut buf, &mut n).is_error() || buf.is_null() {
             return Vec::new();
         }
         let v = core::slice::from_raw_parts(buf, n).iter().map(|g| **g).collect();
