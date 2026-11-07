@@ -22,6 +22,7 @@
 - **feat:** the 800-series chipset GbE IDs 8086:550c/550d (pci.ids), 67 IDs.
 - **test:** verified: 38 host tests pass; check-driver 57,856 B, subsystem 11,
   clippy clean; QEMU e1000e under OVMF passes plain and iPXE-takeover boots.
+- **docs:** #1 closed; the pin of d0bc5ec is asked on stormbootx#70.
 
 ### 2026-10-07
 - **chore:** repository created (owner: low priority, paused)

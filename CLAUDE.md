@@ -65,7 +65,7 @@ sc-build scripts/test-ovmf.sh        # QEMU e1000e (82574L) + OVMF: the check ap
 
 ## Work plan
 
-- [ ] #1 UEFI SNP driver: bind, link, transmit/receive; pinned in stormbootx
+- [x] #1 UEFI SNP driver: bind, link, transmit/receive (closed 2026-11-07)
   - [x] Scaffold: workspace (driver + `check/`), build.rs subsystem 11,
         glue from stormnic-realtek, PCI IDs from pci.ids (2026.11.06; 67 IDs)
   - [x] Hardware core (reset, MAC address, PHY check, rings), SNP core (5e6965c)
@@ -77,6 +77,9 @@ sc-build scripts/test-ovmf.sh        # QEMU e1000e (82574L) + OVMF: the check ap
         `plain` (no option ROM) and `ipxe` (efi-e1000e.rom held the NIC,
         disconnected) both PASS: lease 10.0.2.15, ping 5/5, UDP echo 1200 B,
         `link up 1000 Mb/s full duplex, flow control off, SNP installed`
-  - [ ] stormbootx#70: pin it in build-nic-drivers.sh and add an `e1000e`
-        family for `prefer_media_drivers` (asked there); #1 proposed
-        `--after` it. #1 closes when stormbootx pins it.
+  - [x] check-driver and host tests again at d0bc5ec (adds 550c/550d):
+        57,856 B, subsystem 11, sha256 99833a56…32dc; 38 tests pass
+  - [x] Pin asked on stormbootx#70 (d0bc5ecb6280c33cc0600f51b98c7c6c5ae954d8
+        and an `e1000e` family for `prefer_media_drivers`). stormbootx#70 waits
+        on #1 (a `--after` the other way was refused as circular), so #1 was
+        closed to release it; the pin is stormbootx's to do there.
