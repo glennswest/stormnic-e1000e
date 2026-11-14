@@ -44,6 +44,13 @@ All registers are 32-bit, in memory BAR 0.
   BMSR; if autonegotiation is off or the PHY is powered down or isolated,
   write BMCR with AUTOEN and RESTART_AN. A PHY that does not answer is a
   warning, not a failure.
+- **Media, speed and FEC** (the stormnic contract, #5): every part is a
+  copper PHY (10BASE-T, 100BASE-TX, 1000BASE-T). The speed is what
+  autonegotiation reached, read from STATUS.SPEED and STATUS.FD after Start
+  waits up to 3 s for the link. IEEE 802.3 defines no FEC for these PHYs
+  and the MAC has none to configure, so the standard FEC, and what runs, is
+  none (`e1000e::standard_fec`). The binding prints one line per port with
+  all of it; a port without link is an `error:` line.
 - **Bring-up** (`ring::Net::start`, SNP Initialize): disable, reset, rings
   rewritten, then `mac_init` (CTRL with SLU/ASDE and no forced speed, no
   flow control; DRV_LOAD; RAL0/RAH0; MTA cleared; TXDCTL; ring registers

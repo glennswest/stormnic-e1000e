@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### 2026-11-13
+- **feat:** the stormnic contract (#5): one console line per port naming
+  driver, PCI address, PCI ID, part, MAC, media (copper), speed, the IEEE
+  standard FEC for that media/speed (none: 10/100/1000BASE-T has no FEC)
+  and link; a port without link is an `error:` line saying how long
+  autonegotiation was waited for. `e1000e::{Media, Fec, standard_fec,
+  PortLine}`; "SNP installed" and the flow-control state moved to the trace.
+- **test:** host tests for the standard FEC and the per-port line (link UP,
+  half duplex, the error line); `scripts/test-ovmf.sh` checks the per-port
+  line with FEC none and link UP.
+- **docs:** README and docs/hardware.md describe the contract and the line.
+
 ### 2026-11-07
 - **docs:** refreshed README and docs/hardware.md from the code since 2026-10-07: the 800-series IDs (550c/550d, `Pch` kind) are named in both; no promise in the docs lacks code behind it, so no issue filed.
 - **feat:** the e1000e SNP driver (#1): driver binding for 65 Intel

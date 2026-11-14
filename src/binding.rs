@@ -342,12 +342,19 @@ impl E1000eDriver {
             }
         };
         self.bound.push(Bound { controller, location, decode: attributes, dma, port, pci });
-        // The one default line per NIC (stormnic-ixgbe#22).
+        // The one default line per port (stormnic-ixgbe#22), in the stormnic
+        // contract's form (#5): driver, PCI address, MAC, media, speed, FEC,
+        // link; a port without link is an error line.
         say!(
-            "stormnic-e1000e {}: {at} 8086:{dev:04x} {}: MAC {}, link {}, SNP installed{}",
-            env!("CARGO_PKG_VERSION"), nic.name, mac_str(id.mac), link,
+            "{}{}",
+            e1000e::PortLine {
+                version: env!("CARGO_PKG_VERSION"), at: &at, device: dev, part: nic.name,
+                mac: id.mac, media: e1000e::Media::Copper, link,
+                waited_ms: if link.up { 0 } else { LINK_WAIT_MS as u32 },
+            },
             if nic.kind.verified() { "" } else { " (PCH part: verified in simulation only)" }
         );
+        trace!("stormnic-e1000e: {at} 8086:{dev:04x}: link {link}, SNP installed");
         console::begin();
         Ok(())
     }
@@ -426,6 +433,9 @@ fn dma_up(pci: &PciIo, bar: u8, at: &impl core::fmt::Display, dev: u16, kind: Ki
     }
 }
 
+/// How long Start waits for a link that is down.
+const LINK_WAIT_MS: usize = 3000;
+
 fn bring_up(bars: &mut Bars, net: &mut Net, at: &impl core::fmt::Display, dev: u16, device: u64)
     -> core::result::Result<Link, e1000e::Error<Status>> {
     // A PHY that does not answer is logged, not fatal: the MAC may still
@@ -442,7 +452,7 @@ fn bring_up(bars: &mut Bars, net: &mut Net, at: &impl core::fmt::Display, dev: u
         Err(e) => say!("stormnic-e1000e: {at} 8086:{dev:04x}: warning: {}", nic_error(&e)),
     }
     net.start(bars, false)?;
-    let link = e1000e::wait_link(bars, 3000)?;
+    let link = e1000e::wait_link(bars, LINK_WAIT_MS)?;
     trace!(
         "stormnic-e1000e: {at} 8086:{dev:04x}: DMA: {} pages at device {device:#x}, rings RX {} / TX {} x {} B; link {link}",
         ring::DMA_PAGES, ring::RX_COUNT, ring::TX_COUNT, ring::BUF_SIZE
@@ -453,7 +463,7 @@ fn bring_up(bars: &mut Bars, net: &mut Net, at: &impl core::fmt::Display, dev: u
             None => say!("stormnic-e1000e: {at} 8086:{dev:04x}: DMA check: the NIC did not write the frame's descriptor back within 100 ms"),
         }
     } else {
-        trace!("stormnic-e1000e: {at} 8086:{dev:04x}: DMA check skipped: link down after 3 s");
+        trace!("stormnic-e1000e: {at} 8086:{dev:04x}: DMA check skipped: link down after {LINK_WAIT_MS} ms");
     }
     Ok(link)
 }

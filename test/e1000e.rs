@@ -301,3 +301,43 @@ fn every_supported_id_is_intel_and_listed_once() {
     assert_eq!(sorted.len(), ids.len(), "a device ID listed twice");
     assert!(ids.contains(&"10d3"), "QEMU's e1000e");
 }
+
+#[test]
+fn the_standard_fec_is_none_for_every_speed() {
+    for mbps in [0, 10, 100, 1000] {
+        assert_eq!(nic::standard_fec(nic::Media::Copper, mbps), nic::Fec::None);
+    }
+}
+
+fn port_line(link: Link, waited_ms: u32) -> String {
+    format!(
+        "{}",
+        nic::PortLine {
+            version: "0.2.0", at: "00:02.0", device: 0x10d3, part: "82574L Gigabit Network Connection",
+            mac: MAC, media: nic::Media::Copper, link, waited_ms,
+        }
+    )
+}
+
+#[test]
+fn the_port_line_names_driver_address_mac_media_speed_fec_and_link() {
+    let l = port_line(Link { up: true, mbps: 1000, full_duplex: true, rx_pause: false, tx_pause: false }, 0);
+    let m = MAC;
+    let mac = format!("{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}", m[0], m[1], m[2], m[3], m[4], m[5]);
+    assert_eq!(
+        l,
+        format!("stormnic-e1000e 0.2.0: 00:02.0 8086:10d3 82574L Gigabit Network Connection: MAC {mac}, media copper, speed 1000 Mb/s full duplex, FEC none, link UP")
+    );
+    assert!(!l.contains("error"));
+    let l = port_line(Link { up: true, mbps: 100, full_duplex: false, rx_pause: false, tx_pause: false }, 0);
+    assert!(l.ends_with("speed 100 Mb/s half duplex, FEC none, link UP"), "{l}");
+}
+
+#[test]
+fn a_port_without_link_is_an_error_line() {
+    let l = port_line(Link::default(), 3000);
+    assert!(
+        l.ends_with("speed none, FEC none, link DOWN: error: no link after 3000 ms of autonegotiation (check the cable and the link partner)"),
+        "{l}"
+    );
+}

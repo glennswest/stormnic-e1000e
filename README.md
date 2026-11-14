@@ -35,8 +35,16 @@ console line says so. Not yet pinned in stormbootx (stormbootx#70).
 - The NIC runs only between SNP Initialize and Shutdown/Stop; it is quiesced
   (RX/TX off, interrupts masked, MAC reset, CTRL_EXT.DRV_LOAD clear) at
   every other point, including ExitBootServices.
-- Console: one line per NIC by default
-  (`stormnic-e1000e 0.1.0: 00:02.0 8086:10d3 82574L Gigabit Network Connection: MAC …, link up 1000 Mb/s full duplex, flow control off, SNP installed`);
+- **The stormnic contract** (#5): the driver brings its port up itself
+  (autonegotiation on, PHY powered, link waited for) and applies the IEEE
+  802.3 standard FEC for its media and speed; nothing is handed down by
+  stormbootx. Every e1000e part is copper 10/100/1000BASE-T, which has no
+  FEC, so the standard is **none**.
+- Console: one line per port by default, naming driver, PCI address, MAC,
+  media, speed, FEC and link
+  (`stormnic-e1000e 0.2.0: 0000:00:02.0 8086:10d3 82574L Gigabit Network Connection: MAC 52:54:00:12:34:56, media copper, speed 1000 Mb/s full duplex, FEC none, link UP`);
+  a port without link is an error line (`speed none, FEC none, link DOWN:
+  error: no link after 3000 ms of autonegotiation …`), never a silent one;
   the bring-up trace when the EFI variable `StormnicVerbose`
   (GUID `ce1479a2-eab9-4176-b0ad-c909ea5b8e0b`) is set or with
   `--features verbose`.

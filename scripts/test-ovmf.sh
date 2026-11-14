@@ -17,7 +17,7 @@
 # slirp leases 10.0.2.15 and answers pings to its 10.0.2.2; the UDP echo
 # goes to a python echo server on the build box's loopback, which slirp
 # reaches as 10.0.2.2. Each boot must print `STORMNIC-E1000E CHECK PASS`
-# and the driver's one console line.
+# and the driver's per-port line (FEC none, link UP).
 #
 # Needs qemu-system-x86_64, OVMF, python3, mkfs.fat, mtools. KVM when
 # /dev/kvm is writable, TCG otherwise.
@@ -72,7 +72,10 @@ boot() {
         grep -q 'firmware driver(s) disconnected' "$log" \
             || die "$name: the firmware's driver did not hold the NIC, so the takeover was not tested"
     fi
-    grep -q "stormnic-e1000e [0-9.]*: .*8086:10d3 .*SNP installed" "$log" || die "$name: no driver line for 8086:10d3"
+    # The per-port line of the stormnic contract (#5): address, MAC, media,
+    # speed, the standard FEC (none at 1G) and link UP.
+    grep -qE "stormnic-e1000e [0-9.]+: [0-9a-f:.]+ 8086:10d3 [^:]+: MAC ([0-9a-f]{2}:){5}[0-9a-f]{2}, media copper, speed 1000 Mb/s full duplex, FEC none, link UP" "$log" \
+        || die "$name: no per-port line for 8086:10d3 with FEC none and link UP"
     say "$name: PASS"
 }
 boot plain "" no

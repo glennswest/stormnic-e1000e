@@ -227,6 +227,86 @@ impl core::fmt::Display for Link {
     }
 }
 
+/// The medium a port runs on. Every part this driver binds (82574L,
+/// 82579, I217, I218, I219) has an integrated or attached copper PHY.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Media {
+    /// 10BASE-T, 100BASE-TX, 1000BASE-T over twisted pair.
+    Copper,
+}
+
+impl Media {
+    pub fn name(self) -> &'static str {
+        match self {
+            Media::Copper => "copper",
+        }
+    }
+}
+
+/// Forward error correction on the line.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Fec {
+    /// No FEC: the standard for every speed and media this family runs.
+    None,
+}
+
+impl Fec {
+    pub fn name(self) -> &'static str {
+        match self {
+            Fec::None => "none",
+        }
+    }
+}
+
+/// The IEEE 802.3 FEC for a port's media and speed (the stormnic contract,
+/// #5: the driver applies the standard itself, nothing is handed down).
+/// 10BASE-T, 100BASE-TX and 1000BASE-T have no FEC in 802.3, and the MAC
+/// has no FEC block to configure: "none" is the standard and what runs.
+pub fn standard_fec(_media: Media, _mbps: u32) -> Fec {
+    Fec::None
+}
+
+/// The one line a port reports at bind: driver, PCI address, PCI ID, part,
+/// MAC address, media, speed, FEC and link. A port whose link did not come
+/// up is an `error:` line, never a quiet one.
+pub struct PortLine<'a, A: core::fmt::Display> {
+    pub version: &'a str,
+    pub at: A,
+    pub device: u16,
+    pub part: &'a str,
+    pub mac: [u8; 6],
+    pub media: Media,
+    pub link: Link,
+    /// How long Start waited for a link that was down (0: it was up).
+    pub waited_ms: u32,
+}
+
+impl<A: core::fmt::Display> core::fmt::Display for PortLine<'_, A> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let m = self.mac;
+        write!(
+            f,
+            "stormnic-e1000e {}: {} 8086:{:04x} {}: MAC {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}, media {}, ",
+            self.version, self.at, self.device, self.part, m[0], m[1], m[2], m[3], m[4], m[5], self.media.name()
+        )?;
+        let fec = standard_fec(self.media, self.link.mbps).name();
+        if self.link.up {
+            write!(
+                f,
+                "speed {} Mb/s {}, FEC {fec}, link UP",
+                self.link.mbps,
+                if self.link.full_duplex { "full duplex" } else { "half duplex" }
+            )
+        } else {
+            write!(
+                f,
+                "speed none, FEC {fec}, link DOWN: error: no link after {} ms of autonegotiation (check the cable and the link partner)",
+                self.waited_ms
+            )
+        }
+    }
+}
+
 /// Where the station address came from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MacSource {
