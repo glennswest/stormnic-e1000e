@@ -61,7 +61,7 @@ sc-build scripts/test-ovmf.sh        # QEMU e1000e (82574L) + OVMF: the check ap
 
 ## Version
 
-`Cargo.toml` → `package.version` (and `check/Cargo.toml`). Current: `v0.1.0`.
+`Cargo.toml` → `package.version` (and `check/Cargo.toml`). Current: `v0.2.0`.
 
 ## Work plan
 
@@ -83,11 +83,13 @@ sc-build scripts/test-ovmf.sh        # QEMU e1000e (82574L) + OVMF: the check ap
         and an `e1000e` family for `prefer_media_drivers`). stormbootx#70 waits
         on #1 (a `--after` the other way was refused as circular), so #1 was
         closed to release it; the pin is stormbootx's to do there.
-- [ ] #5 The stormnic contract: the driver brings its port up itself and
+- [x] #5 The stormnic contract: the driver brings its port up itself and
       reports one line per port (driver, PCI address, MAC, media, speed,
       FEC, link); the standard FEC for every e1000e media/speed (copper
       10/100/1000BASE-T) is none; a port without link is an error line.
       Same form as stormnic-igb#5 (b065f80).
-  - [ ] `e1000e::{Fec, standard_fec, PortLine}`, binding's line, host tests
-  - [ ] test-ovmf.sh checks the per-port line (FEC none, link UP)
-  - [ ] sc-build check-driver, test-host, test-ovmf
+  - [x] `e1000e::{Media, Fec, standard_fec, PortLine}`, binding's line, host tests (879f441)
+  - [x] test-ovmf.sh checks the per-port line (FEC none, link UP)
+  - [x] sc-build at 879f441: 41 host tests; check-driver 58,880 B subsystem 11;
+        test-ovmf plain + ipxe PASS with `… media copper, speed 1000 Mb/s full
+        duplex, FEC none, link UP`. Released v0.2.0; pin asked of stormbootx.

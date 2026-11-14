@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [v0.2.0] — 2026-11-13
+
 ### 2026-11-13
 - **feat:** the stormnic contract (#5): one console line per port naming
   driver, PCI address, PCI ID, part, MAC, media (copper), speed, the IEEE
@@ -12,6 +14,11 @@
 - **test:** host tests for the standard FEC and the per-port line (link UP,
   half duplex, the error line); `scripts/test-ovmf.sh` checks the per-port
   line with FEC none and link UP.
+- **test:** verified at 879f441: 41 host tests pass; check-driver 58,880 B,
+  PE32+ subsystem 11, clippy clean, no warnings; QEMU e1000e under OVMF
+  (plain and iPXE takeover) prints `… media copper, speed 1000 Mb/s full
+  duplex, FEC none, link UP` and passes DHCP, ping 5/5, UDP echo.
+- **chore(release):** v0.2.0.
 - **docs:** README and docs/hardware.md describe the contract and the line.
 
 ### 2026-11-07
