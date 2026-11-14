@@ -83,3 +83,11 @@ sc-build scripts/test-ovmf.sh        # QEMU e1000e (82574L) + OVMF: the check ap
         and an `e1000e` family for `prefer_media_drivers`). stormbootx#70 waits
         on #1 (a `--after` the other way was refused as circular), so #1 was
         closed to release it; the pin is stormbootx's to do there.
+- [ ] #5 The stormnic contract: the driver brings its port up itself and
+      reports one line per port (driver, PCI address, MAC, media, speed,
+      FEC, link); the standard FEC for every e1000e media/speed (copper
+      10/100/1000BASE-T) is none; a port without link is an error line.
+      Same form as stormnic-igb#5 (b065f80).
+  - [ ] `e1000e::{Fec, standard_fec, PortLine}`, binding's line, host tests
+  - [ ] test-ovmf.sh checks the per-port line (FEC none, link UP)
+  - [ ] sc-build check-driver, test-host, test-ovmf
