@@ -9,11 +9,12 @@ boot images over these NICs without iPXE. A sibling of stormnic-ixgbe,
 stormnic-mlx4, stormnic-virtio and stormnic-realtek, built and pinned the
 same way (stormbootx `build-nic-drivers.sh`).
 
-Status: v0.1.0, #1. The 82574L passes under QEMU/OVMF (QEMU's `e1000e`
-device, `scripts/test-ovmf.sh`, 2026-11-07 at e5384c7: DHCP, ping 5/5, UDP
-echo, with and without QEMU's iPXE option ROM holding the NIC first). The
-PCH parts (82579, I217–I219) are verified in simulation only, and their
-console line says so. Not yet pinned in stormbootx (stormbootx#70).
+Status: v0.2.0, #1 and #5. The 82574L passes under QEMU/OVMF (QEMU's `e1000e`
+device, `scripts/test-ovmf.sh`, 2026-11-13 at 879f441: the per-port line with
+FEC none and link UP, DHCP, ping 5/5, UDP echo, with and without QEMU's iPXE
+option ROM holding the NIC first). The PCH parts (82579, I217–I219) are
+verified in simulation only, and their console line says so. Pinning in
+stormbootx is stormbootx's to do (stormbootx#70, #202).
 
 ## What it does
 
