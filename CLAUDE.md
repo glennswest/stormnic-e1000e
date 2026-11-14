@@ -93,3 +93,7 @@ sc-build scripts/test-ovmf.sh        # QEMU e1000e (82574L) + OVMF: the check ap
   - [x] sc-build at 879f441: 41 host tests; check-driver 58,880 B subsystem 11;
         test-ovmf plain + ipxe PASS with `… media copper, speed 1000 Mb/s full
         duplex, FEC none, link UP`. Released v0.2.0; pin asked of stormbootx.
+- [ ] #6 Device IDs Linux's e1000e binds that this driver doesn't (46 older
+      8257x/ICH8-10 parts, stormbootx#202); open, P2. `src/ids.rs` stays at 67 IDs until done.
+- [ ] #7 PCH parts: check whether DPG_EN must be cleared after MAC reset; open, P3.
+      The driver does not touch DPG_EN today; simulation-only until a PCH machine boots it.

@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### 2026-11-14
+- **docs:** refreshed README, docs/hardware.md and CLAUDE.md against the code since 2026-11-07 (the #5 per-port line, v0.2.0): the docs already match the code; added the open gaps #6 (older device IDs) and #7 (DPG_EN on PCH parts) to the README and work plan. No promise lacks code, so no new issue.
+
 ## [v0.2.0] — 2026-11-13
 
 ### 2026-11-13

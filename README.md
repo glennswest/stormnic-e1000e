@@ -16,6 +16,9 @@ option ROM holding the NIC first). The PCH parts (82579, I217–I219) are
 verified in simulation only, and their console line says so. Pinning in
 stormbootx is stormbootx's to do (stormbootx#70, #202).
 
+Known gaps (open issues): older 8257x/ICH8-10 device IDs are not bound (#6);
+whether the PCH parts need DPG_EN cleared after a MAC reset is unchecked (#7).
+
 ## What it does
 
 - `EFI_DRIVER_BINDING_PROTOCOL` on the image (an EFI boot-service driver,
