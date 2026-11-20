@@ -93,12 +93,15 @@ sc-build scripts/test-ovmf.sh        # QEMU e1000e (82574L) + OVMF: the check ap
   - [x] sc-build at 879f441: 41 host tests; check-driver 58,880 B subsystem 11;
         test-ovmf plain + ipxe PASS with `… media copper, speed 1000 Mb/s full
         duplex, FEC none, link UP`. Released v0.2.0; pin asked of stormbootx.
-- [ ] #9 Review findings 91bea4b60989 (reset under undrained DMA) and
+- [x] #9 Review findings 91bea4b60989 (reset under undrained DMA) and
       cc9c5c400a6b (cleanup re-enabling BME after a failed quiesce); P0.
   - [x] `reset` fails with `MasterTimeout` before CTRL.RST; `decode::release_stopped`
         on every keep-the-region path; BME off at ExitBootServices if quiesce fails
   - [x] host tests: stuck GIO_MASTER_EN in the simulator, `test/decode.rs`
-  - [ ] sc-build check-driver, test-host, test-ovmf
+  - [x] sc-build at 976f0d5: 46 host tests pass; check-driver 59,392 B, PE32+
+        subsystem 11, sha256 c5c9e58a…8f3e, no warnings; test-ovmf plain + ipxe PASS
+- [ ] Majors from the same review: 12ddf8597a6f (GetStatus recycles TX buffers
+      before descriptor completion) is next, as P1 (9680dd0bea37 was #9's duplicate).
 - [ ] #6 Device IDs Linux's e1000e binds that this driver doesn't (46 older
       8257x/ICH8-10 parts, stormbootx#202); open, P2. `src/ids.rs` stays at 67 IDs until done.
 - [ ] #7 PCH parts: check whether DPG_EN must be cleared after MAC reset; open, P3.

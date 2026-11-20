@@ -18,6 +18,9 @@
   finding cc9c5c400a6b).
 - **test:** a simulator mode where GIO_MASTER_EN never clears; host tests
   for `decode` (new `test/decode.rs`, run by `scripts/test-host.sh`).
+- **test:** verified at 976f0d5: 46 host tests pass; check-driver 59,392 B,
+  PE32+ subsystem 11, no warnings; QEMU e1000e under OVMF (plain and iPXE
+  takeover) passes DHCP, ping 5/5, UDP echo with `… FEC none, link UP`.
 
 ### 2026-11-14
 - **docs:** refreshed README, docs/hardware.md and CLAUDE.md against the code since 2026-11-07 (the #5 per-port line, v0.2.0): the docs already match the code; added the open gaps #6 (older device IDs) and #7 (DPG_EN on PCH parts) to the README and work plan. No promise lacks code, so no new issue.
