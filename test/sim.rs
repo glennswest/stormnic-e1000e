@@ -29,6 +29,9 @@ pub struct Dev {
     pub resets: usize,
     /// CTRL.RST never clears.
     pub reset_stuck: bool,
+    /// STATUS.GIO_MASTER_EN stays set whatever CTRL.GIO_MASTER_DISABLE says
+    /// (DMA that never drains).
+    pub master_stuck: bool,
     /// MDIC never reports ready.
     pub mdic_stuck: bool,
     /// No PHY at the MDIO address: MDIC reports an error.
@@ -58,7 +61,7 @@ impl Dev {
         for w in 0..3 { eeprom[w] = u16::from_le_bytes([MAC[2 * w], MAC[2 * w + 1]]); }
         let mut d = Dev {
             kind, base, regs: HashMap::new(), eeprom, phy: HashMap::new(), now: 0, cable: true,
-            an_done_at: 0, an_restarts: 0, resets: 0, reset_stuck: false, mdic_stuck: false,
+            an_done_at: 0, an_restarts: 0, resets: 0, reset_stuck: false, master_stuck: false, mdic_stuck: false,
             phy_absent: false, fw_semaphore: false, ral_blank: false, tx_stalled: false,
             wire: Vec::new(), loopback: false, dropped: 0, filtered: 0, ops: Vec::new(),
         };
@@ -133,7 +136,7 @@ impl Dev {
     fn status(&self) -> u32 {
         let mut s = self.get(nic::STATUS) & nic::STATUS_LAN_INIT_DONE;
         if self.link_up() { s |= nic::STATUS_LU | nic::STATUS_FD | (2 << nic::STATUS_SPEED_SHIFT); }
-        if self.get(nic::CTRL) & nic::CTRL_GIO_MASTER_DISABLE == 0 { s |= nic::STATUS_GIO_MASTER_EN; }
+        if self.master_stuck || self.get(nic::CTRL) & nic::CTRL_GIO_MASTER_DISABLE == 0 { s |= nic::STATUS_GIO_MASTER_EN; }
         s
     }
 

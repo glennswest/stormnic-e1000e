@@ -175,6 +175,9 @@ pub enum Error<E> {
     NoMac,
     /// CTRL.RST did not clear within 100 ms of the reset.
     ResetTimeout { ctrl: u32 },
+    /// STATUS.GIO_MASTER_EN still set 10 ms after CTRL.GIO_MASTER_DISABLE:
+    /// the NIC may still be doing DMA, so it was not reset (STATUS read last).
+    MasterTimeout { status: u32 },
     /// An MDIC access did not complete within 10 ms.
     MdicTimeout { reg: u32 },
     /// The MAC flagged an MDIC access as failed (no PHY at the address).
@@ -466,13 +469,17 @@ pub fn disable<B: Bus>(b: &mut B) -> R<(), B::Error> {
 }
 
 /// A MAC reset (CTRL.RST; never PHY_RST): bus mastering stopped first
-/// (CTRL.GIO_MASTER_DISABLE until STATUS.GIO_MASTER_EN clears, up to 10 ms),
-/// the semaphore held across it, then up to 100 ms for RST to clear, and on
+/// (CTRL.GIO_MASTER_DISABLE until STATUS.GIO_MASTER_EN clears, up to 10 ms;
+/// if it never clears the NIC may still DMA, so there is no reset and the
+/// caller gets `MasterTimeout`: it must keep the DMA region and turn bus
+/// mastering off at the PCI level), the semaphore held across it, then up to 100 ms for RST to clear, and on
 /// a PCH part up to 150 ms for the NVM reload (STATUS.LAN_INIT_DONE). It
 /// clears the rings' registers and RCTL/TCTL; the PHY and its link stay.
 pub fn reset<B: Bus>(b: &mut B, kind: Kind) -> R<(), B::Error> {
     set32(b, CTRL, CTRL_GIO_MASTER_DISABLE)?;
-    wait(b, 100, 100, |b| Ok(b.r32(STATUS)? & STATUS_GIO_MASTER_EN == 0))?;
+    if !wait(b, 100, 100, |b| Ok(b.r32(STATUS)? & STATUS_GIO_MASTER_EN == 0))? {
+        return Err(Error::MasterTimeout { status: b.r32(STATUS)? });
+    }
     semaphore(b)?;
     let ctrl = b.r32(CTRL)?;
     b.w32(CTRL, ctrl | CTRL_RST)?;

@@ -35,7 +35,10 @@ All registers are 32-bit, in memory BAR 0.
 ## Sequences
 
 - **Reset** (`e1000e::reset`): GIO_MASTER_DISABLE and wait (≤ 10 ms) for
-  GIO_MASTER_EN to clear; take the PHY semaphore; CTRL.RST; 20 ms with no
+  GIO_MASTER_EN to clear. If it never clears the NIC may still be doing
+  DMA: there is no CTRL.RST, the reset fails (`MasterTimeout`), the rings
+  are not rewritten, and the binding keeps the DMA region and turns PCI bus
+  mastering off for good (below). Otherwise take the PHY semaphore; CTRL.RST; 20 ms with no
   access; wait (≤ 100 ms) for RST to clear; release the semaphore; on a PCH
   part wait (≤ 150 ms) for LAN_INIT_DONE and clear it; mask and acknowledge
   interrupts. **PHY_RST is never set**: the link the firmware brought up

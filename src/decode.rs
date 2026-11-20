@@ -16,7 +16,10 @@
 //!    write-1-to-clear bits) and read back. Only if they are still clear
 //!    does Start fail.
 //!
-//! `release` undoes exactly what `enable` did.
+//! `release` undoes exactly what `enable` did. `release_stopped` is for a
+//! NIC that would not quiesce: it undoes the rest but leaves Bus Master
+//! Enable clear, so the controller can never again reach the DMA region
+//! the driver keeps for it.
 
 /// `EFI_PCI_IO_ATTRIBUTE_MEMORY`.
 pub const ATTRIBUTE_MEMORY: u64 = 0x0002;
@@ -125,6 +128,38 @@ pub fn release<P: Pci>(pci: &P, e: &Enabled<P::Status>) -> Result<(), P::Status>
         }
     }
     r
+}
+
+/// What `release_stopped` did: the put-back (as `release`), and whether Bus
+/// Master Enable reads back clear at the end (`stop_bus_master`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Stopped<S> {
+    pub restore: Result<(), S>,
+    pub master_off: Result<(), Option<S>>,
+}
+
+/// `release` for a NIC that would not quiesce: the command register and the
+/// attributes go back as `enable` found them except Bus Master Enable,
+/// which is never put back (`Set` is given the original attributes without
+/// BUS_MASTER), and `stop_bus_master` runs last whatever the firmware did,
+/// so BME ends clear even if it was set before Start.
+pub fn release_stopped<P: Pci>(pci: &P, e: &Enabled<P::Status>) -> Stopped<P::Status> {
+    let mut restore = Ok(());
+    if let Some(before) = e.command_before {
+        restore = pci.config_read_u16(COMMAND).and_then(|now| {
+            pci.config_write_u16(COMMAND, (now & !COMMAND_WANTED) | (before & COMMAND_MEMORY))
+        });
+    }
+    if e.by_attributes != 0 {
+        let a = match e.original {
+            Ok(original) => pci.set(original & !ATTRIBUTE_BUS_MASTER),
+            Err(_) => pci.disable(e.by_attributes),
+        };
+        if restore.is_ok() {
+            restore = a;
+        }
+    }
+    Stopped { restore, master_off: stop_bus_master(pci) }
 }
 
 /// Turn bus mastering off (a NIC whose queues would not stop): `Disable`,

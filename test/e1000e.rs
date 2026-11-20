@@ -220,6 +220,35 @@ fn a_reset_that_never_completes_fails_start() {
     assert!(!d.rx_enabled() && !d.tx_enabled());
 }
 
+/// Finding 91bea4b60989: STATUS.GIO_MASTER_EN that never clears (DMA that
+/// never drains) fails the reset before CTRL.RST, and neither start nor
+/// stop touches the rings the NIC may still be reading.
+#[test]
+fn bus_master_activity_that_never_drains_fails_the_reset_before_rst() {
+    for kind in KINDS {
+        let (mut d, mut net) = started(kind);
+        let resets = d.resets;
+        let rings = (d.get(nic::RDBAL), d.get(nic::TDBAL));
+        let desc = d.mem32(DEVICE_BASE);
+        d.master_stuck = true;
+        d.ops.clear();
+        assert!(matches!(net.stop(&mut d), Err(Error::MasterTimeout { status }) if status & nic::STATUS_GIO_MASTER_EN != 0));
+        assert!(matches!(net.start(&mut d, false), Err(Error::MasterTimeout { .. })));
+        assert!(!net.running);
+        assert_eq!(d.resets, resets, "no MAC reset while DMA may be in flight");
+        assert!(d.writes(nic::CTRL).iter().all(|v| v & nic::CTRL_RST == 0), "CTRL.RST never written");
+        assert_eq!((d.get(nic::RDBAL), d.get(nic::TDBAL)), rings, "the rings stay where the NIC has them");
+        assert_eq!(d.mem32(DEVICE_BASE), desc, "start does not rewrite descriptor memory");
+        assert!(!d.rx_enabled() && !d.tx_enabled());
+        assert_eq!(d.get(nic::CTRL) & nic::CTRL_GIO_MASTER_DISABLE, nic::CTRL_GIO_MASTER_DISABLE,
+            "GIO_MASTER_DISABLE stays set");
+        // Once it drains, the next stop resets as usual.
+        d.master_stuck = false;
+        net.stop(&mut d).unwrap();
+        assert_eq!(d.resets, resets + 1);
+    }
+}
+
 #[test]
 fn the_pch_reset_waits_for_the_nvm_reload_and_acknowledges_it() {
     let (d, _net) = started(Kind::Pch);

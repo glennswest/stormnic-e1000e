@@ -228,6 +228,7 @@ fn nic_error(e: &e1000e::Error<Status>) -> impl core::fmt::Display + '_ {
                 e1000e::Error::Removed => f.write_str("STATUS reads all ones (function gone or BAR not decoded)"),
                 e1000e::Error::NoMac => f.write_str("no unicast station address in RAL0/RAH0 or the EEPROM"),
                 e1000e::Error::ResetTimeout { ctrl } => write!(f, "MAC reset did not complete (CTRL {ctrl:#010x})"),
+                e1000e::Error::MasterTimeout { status } => write!(f, "bus-master activity did not stop within 10 ms (STATUS {status:#010x}); MAC not reset"),
                 e1000e::Error::MdicTimeout { reg } => write!(f, "PHY register {reg} access (MDIC) timed out"),
                 e1000e::Error::MdicFailed { reg } => write!(f, "PHY register {reg} access (MDIC) failed: no PHY at address 1"),
                 e1000e::Error::Frame { len } => write!(f, "bad frame length {len}"),
@@ -323,8 +324,12 @@ impl E1000eDriver {
         );
         let (dma, net, link) = match dma_up(&pci, bar, &at, dev, nic.kind, &id) {
             Ok(r) => r,
-            Err(()) => {
+            Err(Down::Quiesced) => {
                 restore(&pci, &attributes);
+                return Err(Status::DEVICE_ERROR.into());
+            }
+            Err(Down::Kept) => {
+                keep_dma(&pci, &attributes, &at);
                 return Err(Status::DEVICE_ERROR.into());
             }
         };
@@ -333,11 +338,11 @@ impl E1000eDriver {
             Err((status, in_use)) => {
                 fail!("stormnic-e1000e: {at} 8086:{dev:04x}: SNP not installed: {status:?}; releasing");
                 if in_use {
-                    keep_dma(&pci, &at);
+                    keep_dma(&pci, &attributes, &at);
                 } else {
                     dma.release(&pci);
+                    restore(&pci, &attributes);
                 }
-                restore(&pci, &attributes);
                 return Err(Status::DEVICE_ERROR.into());
             }
         };
@@ -384,10 +389,12 @@ impl E1000eDriver {
         let b = self.bound.swap_remove(i);
         // SAFETY: the child is gone, so nothing else reaches the Port.
         match unsafe { snp::destroy(b.port) } {
-            Ok(()) => b.dma.release(&b.pci),
-            Err(_) => keep_dma(&b.pci, &at(b.location)),
+            Ok(()) => {
+                b.dma.release(&b.pci);
+                restore(&b.pci, &b.decode);
+            }
+            Err(_) => keep_dma(&b.pci, &b.decode, &at(b.location)),
         }
-        restore(&b.pci, &b.decode);
         trace!("stormnic-e1000e: {}: Stop: released", at(b.location));
         Ok(())
     }
@@ -395,18 +402,24 @@ impl E1000eDriver {
 
 /// Map the region, make sure the PHY autonegotiates, bring the NIC up once,
 /// wait up to 3 s for a link that is down, run the DMA check when the link
-/// is up, and quiesce the NIC. Everything is logged; Err(()) means Start
-/// fails (the region is released, or kept with bus mastering off if the NIC
-/// would not quiesce).
+/// is up, and quiesce the NIC. Everything is logged; Err means Start fails.
 fn dma_up(pci: &PciIo, bar: u8, at: &impl core::fmt::Display, dev: u16, kind: Kind, id: &Identity)
-    -> core::result::Result<(DmaRegion, Net, Link), ()> {
+    -> core::result::Result<(DmaRegion, Net, Link), Down> {
     let mut bars = Bars { pci, bar };
     let region = match DmaRegion::new(pci) {
         Ok(r) => r,
         Err(e) => {
             fail!("stormnic-e1000e: {at} 8086:{dev:04x}: DMA region not mapped: {:?}; releasing", e.status());
-            let _ = e1000e::quiesce(&mut bars, kind);
-            return Err(());
+            // Nothing of ours to keep, but a NIC that would not stop may
+            // still DMA where the firmware's driver pointed it: bus
+            // mastering stays off.
+            return Err(match e1000e::quiesce(&mut bars, kind) {
+                Ok(()) => Down::Quiesced,
+                Err(e) => {
+                    fail!("stormnic-e1000e: {at} 8086:{dev:04x}: quiesce failed: {}", nic_error(&e));
+                    Down::Kept
+                }
+            });
         }
     };
     // SAFETY: the region is DMA_BYTES (rounded to pages) from AllocateBuffer,
@@ -422,13 +435,14 @@ fn dma_up(pci: &PciIo, bar: u8, at: &impl core::fmt::Display, dev: u16, kind: Ki
             Err(_) => {
                 region.release(pci);
                 say!("stormnic-e1000e: {at} 8086:{dev:04x}: NIC quiesced, DMA region released; releasing");
-                Err(())
+                Err(Down::Quiesced)
             }
         },
         Err(e) => {
+            // `region` is never released (DmaRegion has no Drop): the NIC
+            // may still DMA into it.
             fail!("stormnic-e1000e: {at} 8086:{dev:04x}: quiesce failed: {}", nic_error(&e));
-            keep_dma(pci, at);
-            Err(())
+            Err(Down::Kept)
         }
     }
 }
@@ -468,15 +482,28 @@ fn bring_up(bars: &mut Bars, net: &mut Net, at: &impl core::fmt::Display, dev: u
     Ok(link)
 }
 
+/// Why `dma_up` failed: the NIC is quiet (release everything), or it would
+/// not quiesce (`keep_dma`).
+enum Down {
+    Quiesced,
+    Kept,
+}
+
 /// The NIC would not quiesce: it might still DMA into the region, so it is
-/// never freed. Bus mastering is turned off at the PCI level instead; the
-/// pages stay allocated until reboot.
-fn keep_dma(pci: &PciIo, at: &impl core::fmt::Display) {
-    let off = decode::stop_bus_master(pci);
+/// never freed (the pages stay allocated until reboot), and the function is
+/// put back as Start found it except bus mastering, which stays off at the
+/// PCI level even if it was on before Start (`decode::release_stopped`).
+/// The last thing done to the function on that path: nothing restores
+/// after it.
+fn keep_dma(pci: &PciIo, e: &Enabled<Status>, at: &impl core::fmt::Display) {
+    let r = decode::release_stopped(pci, e);
     fail!(
         "stormnic-e1000e: {at}: could not quiesce the NIC; bus mastering {}, DMA region kept allocated",
-        if off.is_ok() { "disabled" } else { "could not be disabled" }
+        if r.master_off.is_ok() { "disabled" } else { "could not be disabled" }
     );
+    if let Err(s) = r.restore {
+        say!("stormnic-e1000e: could not undo the PCI decode changes: {s:?}");
+    }
 }
 
 fn restore(pci: &PciIo, e: &Enabled<Status>) {

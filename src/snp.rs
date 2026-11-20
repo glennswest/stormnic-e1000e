@@ -362,13 +362,17 @@ unsafe extern "efiapi" fn wait_notify(event: Event, context: *mut c_void) {
     }
 }
 
-/// ExitBootServices: quiesce the NIC, whatever the SNP state. No
-/// console output: the OS may have the console by now.
+/// ExitBootServices: quiesce the NIC, whatever the SNP state; if it would
+/// not quiesce, bus mastering off at the PCI level so it cannot DMA into
+/// memory the OS now owns. No console output: the OS may have the console
+/// by now.
 unsafe extern "efiapi" fn exit_notify(_event: Event, context: *mut c_void) {
     // SAFETY: as `wait_notify`.
     let port = unsafe { &mut *(context as *mut Port) };
     let mut io = port.io();
-    let _ = port.core.halt(&mut io);
+    if port.core.halt(&mut io).is_err() {
+        let _ = crate::decode::stop_bus_master(io.pci);
+    }
 }
 
 /// Make the Port and its child handle. The NIC is quiesced; `pci` is the

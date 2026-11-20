@@ -93,6 +93,12 @@ sc-build scripts/test-ovmf.sh        # QEMU e1000e (82574L) + OVMF: the check ap
   - [x] sc-build at 879f441: 41 host tests; check-driver 58,880 B subsystem 11;
         test-ovmf plain + ipxe PASS with `… media copper, speed 1000 Mb/s full
         duplex, FEC none, link UP`. Released v0.2.0; pin asked of stormbootx.
+- [ ] #9 Review findings 91bea4b60989 (reset under undrained DMA) and
+      cc9c5c400a6b (cleanup re-enabling BME after a failed quiesce); P0.
+  - [x] `reset` fails with `MasterTimeout` before CTRL.RST; `decode::release_stopped`
+        on every keep-the-region path; BME off at ExitBootServices if quiesce fails
+  - [x] host tests: stuck GIO_MASTER_EN in the simulator, `test/decode.rs`
+  - [ ] sc-build check-driver, test-host, test-ovmf
 - [ ] #6 Device IDs Linux's e1000e binds that this driver doesn't (46 older
       8257x/ICH8-10 parts, stormbootx#202); open, P2. `src/ids.rs` stays at 67 IDs until done.
 - [ ] #7 PCH parts: check whether DPG_EN must be cleared after MAC reset; open, P3.

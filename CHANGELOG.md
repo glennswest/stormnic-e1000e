@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+### 2026-11-20
+- **fix:** a MAC reset whose bus-master activity never drains
+  (STATUS.GIO_MASTER_EN still set 10 ms after GIO_MASTER_DISABLE) fails
+  with the new `Error::MasterTimeout` before CTRL.RST, instead of resetting
+  the MAC under live DMA; start no longer rewrites the rings then (#9,
+  findings 91bea4b60989 and 9680dd0bea37).
+- **fix:** after a failed quiesce, cleanup never turns bus mastering back
+  on: `decode::release_stopped` puts memory decode and the attributes back
+  without BUS_MASTER and clears BME last, replacing `stop_bus_master` then
+  the plain `release` (which restored BME when it was on before Start).
+  Used on every keep-the-region path (Start's quiesce failure, a DMA region
+  that could not be mapped, SNP install failure with the Port in use,
+  binding Stop); ExitBootServices turns BME off if its quiesce fails (#9,
+  finding cc9c5c400a6b).
+- **test:** a simulator mode where GIO_MASTER_EN never clears; host tests
+  for `decode` (new `test/decode.rs`, run by `scripts/test-host.sh`).
+
 ### 2026-11-14
 - **docs:** refreshed README, docs/hardware.md and CLAUDE.md against the code since 2026-11-07 (the #5 per-port line, v0.2.0): the docs already match the code; added the open gaps #6 (older device IDs) and #7 (DPG_EN on PCH parts) to the README and work plan. No promise lacks code, so no new issue.
 

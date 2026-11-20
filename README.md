@@ -39,6 +39,11 @@ whether the PCH parts need DPG_EN cleared after a MAC reset is unchecked (#7).
 - The NIC runs only between SNP Initialize and Shutdown/Stop; it is quiesced
   (RX/TX off, interrupts masked, MAC reset, CTRL_EXT.DRV_LOAD clear) at
   every other point, including ExitBootServices.
+- A NIC that will not quiesce (bus-master activity that does not drain in
+  10 ms, or a MAC reset that does not complete) is never reset under its
+  DMA and never handed its memory back: the DMA region stays allocated and
+  PCI bus mastering is turned off and left off, even if it was on before
+  Start (#9). At ExitBootServices the same failure turns bus mastering off.
 - **The stormnic contract** (#5): the driver brings its port up itself
   (autonegotiation on, PHY powered, link waited for) and applies the IEEE
   802.3 standard FEC for its media and speed; nothing is handed down by
