@@ -32,8 +32,9 @@ whether the PCH parts need DPG_EN cleared after a MAC reset is unchecked (#7).
   device path installed on a child handle.
 - SNP: polled legacy descriptor rings (32 RX + 32 TX, 2 KiB buffers),
   Start/Stop/Initialize/Reset/Shutdown, ReceiveFilters (unicast, broadcast,
-  multicast list, promiscuous), GetStatus with buffer recycling,
-  Transmit/Receive, WaitForPacket, MCastIpToMac. Statistics and NvData are
+  multicast list, promiscuous), GetStatus with buffer recycling (a
+  transmitted buffer comes back, and TRANSMIT_INTERRUPT is raised, only once
+  the NIC has written its descriptor back), Transmit/Receive, WaitForPacket, MCastIpToMac. Statistics and NvData are
   unsupported; the station address is the NIC's own.
 - **Flow control off**: the MAC never sends pause frames.
 - The NIC runs only between SNP Initialize and Shutdown/Stop; it is quiesced

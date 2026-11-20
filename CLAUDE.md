@@ -100,8 +100,13 @@ sc-build scripts/test-ovmf.sh        # QEMU e1000e (82574L) + OVMF: the check ap
   - [x] host tests: stuck GIO_MASTER_EN in the simulator, `test/decode.rs`
   - [x] sc-build at 976f0d5: 46 host tests pass; check-driver 59,392 B, PE32+
         subsystem 11, sha256 c5c9e58a…8f3e, no warnings; test-ovmf plain + ipxe PASS
-- [ ] Majors from the same review: 12ddf8597a6f (GetStatus recycles TX buffers
-      before descriptor completion) is next, as P1 (9680dd0bea37 was #9's duplicate).
+- [ ] #10 Review finding 12ddf8597a6f (GetStatus recycles TX buffers before
+      descriptor completion); P1.
+  - [x] tokens carry their frame's TX sequence number; GetStatus returns
+        them and raises TRANSMIT_INTERRUPT only past DD; Reset finishes,
+        Shutdown/Stop/halt drop the pending ones; check app polls for its buffer
+  - [x] host tests with a stalled transmitter (`test/snp.rs`)
+  - [ ] sc-build: test-host, check-driver, test-ovmf
 - [ ] #6 Device IDs Linux's e1000e binds that this driver doesn't (46 older
       8257x/ICH8-10 parts, stormbootx#202); open, P2. `src/ids.rs` stays at 67 IDs until done.
 - [ ] #7 PCH parts: check whether DPG_EN must be cleared after MAC reset; open, P3.

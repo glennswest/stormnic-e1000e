@@ -196,3 +196,65 @@ fn smoltcp_style_traffic_round_trips_through_the_snp() {
         assert_eq!((r.len, r.destination, r.protocol), (60, MAC, 0x0800));
     }
 }
+
+/// Finding 12ddf8597a6f: a buffer comes back, and TRANSMIT_INTERRUPT is
+/// raised, only once the NIC has written its descriptor back.
+#[test]
+fn get_status_hands_a_buffer_back_only_after_its_descriptor_is_done() {
+    let (mut d, mut s) = up();
+    d.tx_stalled = true;
+    let mut f = frame_to(OTHER, 1);
+    s.transmit(&mut d, 0, &mut f, None, None, None, 0x1000).unwrap();
+    let mut g = frame_to(OTHER, 2);
+    s.transmit(&mut d, 0, &mut g, None, None, None, 0x2000).unwrap();
+    assert!(d.wire.is_empty());
+    assert_eq!(s.get_status(&mut d, true).unwrap(), (0, None), "nothing sent yet");
+    assert_eq!(s.get_status(&mut d, true).unwrap(), (0, None));
+    d.tx_stalled = false;
+    d.transmit();
+    assert_eq!(d.wire.len(), 2);
+    // TRANSMIT once per completion, whether or not the buffer is taken.
+    assert_eq!(s.get_status(&mut d, false).unwrap(), (snp::TRANSMIT_INTERRUPT, None));
+    assert_eq!(s.get_status(&mut d, false).unwrap(), (0, None));
+    assert_eq!(s.get_status(&mut d, true).unwrap(), (0, Some(0x1000)));
+    assert_eq!(s.get_status(&mut d, true).unwrap(), (0, Some(0x2000)));
+    assert_eq!(s.get_status(&mut d, true).unwrap(), (0, None));
+}
+
+/// Only the frames whose descriptors are done come back; the rest wait.
+#[test]
+fn a_later_frame_waits_behind_its_own_descriptor() {
+    let (mut d, mut s) = up();
+    let mut f = frame_to(OTHER, 1);
+    s.transmit(&mut d, 0, &mut f, None, None, None, 0x1000).unwrap();
+    d.tx_stalled = true;
+    let mut g = frame_to(OTHER, 2);
+    s.transmit(&mut d, 0, &mut g, None, None, None, 0x2000).unwrap();
+    assert_eq!(s.get_status(&mut d, true).unwrap(), (snp::TRANSMIT_INTERRUPT, Some(0x1000)));
+    assert_eq!(s.get_status(&mut d, true).unwrap(), (0, None), "0x2000 is still the NIC's");
+    d.tx_stalled = false;
+    d.transmit();
+    assert_eq!(s.get_status(&mut d, true).unwrap(), (snp::TRANSMIT_INTERRUPT, Some(0x2000)));
+}
+
+/// Reset quiesces the NIC before restarting it, so a frame still queued is
+/// finished (no DMA left) and its buffer comes back; Shutdown drops it.
+#[test]
+fn reset_finishes_pending_buffers_and_shutdown_drops_them() {
+    let (mut d, mut s) = up();
+    d.tx_stalled = true;
+    let mut f = frame_to(OTHER, 1);
+    s.transmit(&mut d, 0, &mut f, None, None, None, 0x1000).unwrap();
+    s.reset(&mut d).unwrap();
+    assert_eq!(s.get_status(&mut d, true).unwrap(), (snp::TRANSMIT_INTERRUPT, Some(0x1000)));
+    assert_eq!(s.get_status(&mut d, true).unwrap(), (0, None));
+    // The restarted ring counts from 0 again: a new frame waits for its own DD.
+    s.transmit(&mut d, 0, &mut f, None, None, None, 0x3000).unwrap();
+    assert_eq!(s.get_status(&mut d, true).unwrap(), (0, None));
+    s.shutdown(&mut d).unwrap();
+    s.initialize(&mut d).unwrap();
+    assert_eq!(s.get_status(&mut d, true).unwrap(), (0, None), "dropped with the interface");
+    d.tx_stalled = false;
+    s.transmit(&mut d, 0, &mut f, None, None, None, 0x4000).unwrap();
+    assert_eq!(s.get_status(&mut d, true).unwrap(), (snp::TRANSMIT_INTERRUPT, Some(0x4000)));
+}

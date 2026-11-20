@@ -189,14 +189,20 @@ impl TxToken for Tx<'_> {
     }
 }
 
-/// GetStatus until `mine` is handed back (or nothing more is), so its
-/// memory can go.
+/// GetStatus until `mine` is handed back, so its memory can go: the driver
+/// hands a buffer back only once the NIC has sent its frame, so a null
+/// buffer means "not yet" and is polled again for up to 100 ms. With no
+/// `mine`, the buffers already finished are taken.
 fn reclaim(snp: *const SimpleNetworkProtocol, mine: Option<*const u8>) {
-    for _ in 0..64 {
+    for _ in 0..10_000 {
         let mut buf: *mut c_void = ptr::null_mut();
         // SAFETY: an open SNP; out-pointers valid.
         let st = unsafe { ((*snp).get_status)(snp, ptr::null_mut(), &mut buf) };
-        if st.is_error() || buf.is_null() || Some(buf as *const u8) == mine { return; }
+        if st.is_error() || Some(buf as *const u8) == mine { return; }
+        if buf.is_null() {
+            if mine.is_none() { return; }
+            boot::stall(Duration::from_micros(10));
+        }
     }
 }
 

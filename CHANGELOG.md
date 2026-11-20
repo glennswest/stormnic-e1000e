@@ -3,6 +3,18 @@
 ## [Unreleased]
 
 ### 2026-11-20
+- **fix:** GetStatus hands a transmitted buffer back, and raises
+  TRANSMIT_INTERRUPT, only once the NIC has written that frame's descriptor
+  back (DD), not as soon as the frame was queued: each token keeps its
+  frame's transmit sequence number (`Net::tx_queued`/`tx_retired`). Reset
+  and a re-Initialize finish the tokens still queued (the NIC is quiesced
+  first, so no DMA is left); Shutdown, Stop and halt drop them (#10,
+  finding 12ddf8597a6f).
+- **test:** host tests with a stalled transmitter: no buffer and no
+  TRANSMIT_INTERRUPT before DD, one TRANSMIT_INTERRUPT per completion, a
+  later frame waiting behind its own descriptor, Reset/Shutdown
+  reconciliation. The check app polls GetStatus until its own buffer comes
+  back (up to 100 ms) instead of stopping at the first empty answer.
 - **fix:** a MAC reset whose bus-master activity never drains
   (STATUS.GIO_MASTER_EN still set 10 ms after GIO_MASTER_DISABLE) fails
   with the new `Error::MasterTimeout` before CTRL.RST, instead of resetting

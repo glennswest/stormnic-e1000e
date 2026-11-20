@@ -160,8 +160,9 @@ impl Dev {
         }
     }
 
-    /// The TDT doorbell: send every descriptor from TDH up to TDT.
-    fn transmit(&mut self) {
+    /// The TDT doorbell: send every descriptor from TDH up to TDT (also
+    /// called by a test to let a stalled transmitter go on).
+    pub fn transmit(&mut self) {
         if !self.tx_enabled() || self.tx_stalled { return; }
         let (ring, count) = (self.tx_ring(), self.tx_count());
         assert!(count > 0, "TDLEN not set");

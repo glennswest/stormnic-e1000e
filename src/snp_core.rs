@@ -17,8 +17,14 @@
 //! The NIC runs only between Initialize and Shutdown/Stop (or halt, at
 //! ExitBootServices): every other state has it quiesced.
 //!
-//! Transmit copies the frame into a ring buffer, so the caller's buffer is
-//! free at once; it is queued for GetStatus to hand back, as the spec asks.
+//! Transmit copies the frame into a ring buffer; the caller's buffer (its
+//! token) is queued with the frame's transmit sequence number, and GetStatus
+//! hands it back, and raises TRANSMIT_INTERRUPT, only once the NIC has
+//! written that frame's descriptor back (DD): a caller that takes the
+//! recycled buffer as "sent" is right to. A MAC restart (Reset, or a
+//! re-Initialize) quiesces the NIC first, so the frames still queued are
+//! finished then (sent or dropped, no DMA left) and their tokens become
+//! ready; Shutdown, Stop and halt drop the tokens with the interface.
 
 use super::ring::{Net, MAX_FRAME, MIN_FRAME};
 use super::{Bus, Error, Link};
@@ -95,10 +101,14 @@ pub struct Snp {
     pub media: bool,
     /// The last link state read.
     pub link: Link,
-    /// A frame went out since the last GetStatus.
+    /// A frame finished since the last GetStatus.
     transmitted: bool,
-    /// Caller buffers (as addresses) for GetStatus, oldest at `head`.
-    recycle: [usize; RECYCLE],
+    /// `net.tx_retired()` when GetStatus last looked.
+    seen_retired: usize,
+    /// Caller buffers (as addresses) for GetStatus, oldest at `head`, each
+    /// with the sequence number its frame's descriptor must retire past
+    /// (None: finished by a MAC restart).
+    recycle: [(usize, Option<usize>); RECYCLE],
     head: usize,
     queued: usize,
 }
@@ -122,7 +132,7 @@ impl Snp {
         Snp {
             net, state: State::Stopped, permanent: mac, current: mac,
             setting: 0, mcast: [[0; 6]; MAX_MCAST], mcast_count: 0, media: link.up, link,
-            transmitted: false, recycle: [0; RECYCLE], head: 0, queued: 0,
+            transmitted: false, seen_retired: 0, recycle: [(0, None); RECYCLE], head: 0, queued: 0,
         }
     }
 
@@ -160,7 +170,7 @@ impl Snp {
     pub fn initialize<B: Bus>(&mut self, b: &mut B) -> F<(), B::Error> {
         match self.state {
             State::Stopped => return Err(Fail::NotStarted),
-            State::Initialized => { self.net.stop(b)?; }
+            State::Initialized => { self.net.stop(b)?; self.finish_pending(); }
             State::Started => {}
         }
         self.setting = 0;
@@ -174,6 +184,7 @@ impl Snp {
     pub fn reset<B: Bus>(&mut self, b: &mut B) -> F<(), B::Error> {
         self.initialized()?;
         self.net.stop(b)?;
+        self.finish_pending();
         self.run(b)
     }
 
@@ -181,8 +192,25 @@ impl Snp {
     pub fn shutdown<B: Bus>(&mut self, b: &mut B) -> F<(), B::Error> {
         self.initialized()?;
         self.net.stop(b)?;
+        self.drop_pending();
         self.state = State::Started;
         Ok(())
+    }
+
+    /// The NIC is quiesced and about to restart (its sequence numbers start
+    /// again from 0): every queued frame is done with, so its token is ready.
+    fn finish_pending(&mut self) {
+        for k in 0..self.queued {
+            let slot = &mut self.recycle[(self.head + k) % RECYCLE].1;
+            if slot.take().is_some() { self.transmitted = true; }
+        }
+    }
+
+    /// The interface goes down: the tokens go with it.
+    fn drop_pending(&mut self) {
+        self.head = 0;
+        self.queued = 0;
+        self.transmitted = false;
     }
 
     /// Bring the NIC up and read the link.
@@ -193,9 +221,20 @@ impl Snp {
             self.state = State::Started;
             return Err(e.into());
         }
+        self.seen_retired = self.net.tx_retired();
         self.link = self.net.link(b)?;
         self.media = self.link.up;
         Ok(())
+    }
+
+    /// Whether the frame queued as `seq` (to retire past `seq + 1`) is done.
+    fn retired(&self, seq: Option<usize>) -> bool {
+        // Fewer than TX_COUNT frames are ever in flight, so the wrapping
+        // distance tells before from after.
+        match seq {
+            None => true,
+            Some(s) => self.net.tx_retired().wrapping_sub(s) as isize > 0,
+        }
     }
 
     /// ReceiveFilters: new setting = (setting | enable) & !disable. With
@@ -283,10 +322,10 @@ impl Snp {
         }
         if buf.len() < MIN_FRAME { return Err(Fail::BufferTooSmall(MIN_FRAME)); }
         if self.queued == RECYCLE { return Err(Fail::NotReady); }
+        let seq = self.net.tx_queued();
         if !self.net.transmit(b, buf)? { return Err(Fail::NotReady); }
-        self.recycle[(self.head + self.queued) % RECYCLE] = token;
+        self.recycle[(self.head + self.queued) % RECYCLE] = (token, Some(seq));
         self.queued += 1;
-        self.transmitted = true;
         Ok(())
     }
 
@@ -305,18 +344,25 @@ impl Snp {
     }
 
     /// GetStatus: interrupt bits (RECEIVE when a frame is waiting, TRANSMIT
-    /// when one went out since the last call), the link into `media`, and
-    /// with `recycle` the oldest transmitted buffer not yet handed back.
+    /// when the NIC finished a frame since the last call), the link into
+    /// `media`, and with `recycle` the oldest transmitted buffer whose frame
+    /// the NIC has finished, not yet handed back.
     pub fn get_status<B: Bus>(&mut self, b: &mut B, recycle: bool) -> F<(u32, Option<usize>), B::Error> {
         self.initialized()?;
         self.net.reclaim();
+        let retired = self.net.tx_retired();
+        if retired != self.seen_retired {
+            self.seen_retired = retired;
+            self.transmitted = true;
+        }
         self.link = self.net.link(b)?;
         self.media = self.link.up;
         let mut bits = 0;
         if self.next_accepted(b)?.is_some() { bits |= RECEIVE_INTERRUPT; }
         if core::mem::take(&mut self.transmitted) { bits |= TRANSMIT_INTERRUPT; }
-        let token = (recycle && self.queued > 0).then(|| {
-            let t = self.recycle[self.head];
+        let ready = self.queued > 0 && self.retired(self.recycle[self.head].1);
+        let token = (recycle && ready).then(|| {
+            let (t, _) = self.recycle[self.head];
             self.head = (self.head + 1) % RECYCLE;
             self.queued -= 1;
             t
@@ -329,6 +375,7 @@ impl Snp {
     /// never initialized, so a NIC some earlier stage left running stops.
     pub fn halt<B: Bus>(&mut self, b: &mut B) -> Result<(), Error<B::Error>> {
         self.state = State::Stopped;
+        self.drop_pending();
         self.net.stop(b)
     }
 }

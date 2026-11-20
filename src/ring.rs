@@ -194,6 +194,13 @@ impl Net {
     /// Transmit descriptors the hardware still has.
     pub fn tx_pending(&self) -> usize { self.tx_prod.wrapping_sub(self.tx_cons) }
 
+    /// Transmit sequence numbers (modulo 2^usize, from 0 at `start`): the
+    /// next frame `transmit` queues is number `tx_queued()`, and frames
+    /// below `tx_retired()` have their descriptor written back (DD), so the
+    /// hardware is done with them.
+    pub fn tx_queued(&self) -> usize { self.tx_prod }
+    pub fn tx_retired(&self) -> usize { self.tx_cons }
+
     /// Retire the transmit descriptors the hardware has written back.
     pub fn reclaim(&mut self) {
         while self.tx_pending() > 0 {
